@@ -20,8 +20,9 @@ class SerasaLimpaNomeDividas(models.Model):
     debt_orig_document                  = models.CharField(blank=True, null=True, db_column='debt_orig_document')
     agreement_date                      = models.DateField(blank=True, null=True, db_column='agreement_date')
     created_at                          = models.DateTimeField(blank=True, null=True, db_column='created_at')
-    deal_status                         = models.CharField(blank=True, null=True, db_column='deal_status')
+    agreement_status                    = models.CharField(blank=True, null=True, db_column='agreement_status')
     settlement_date                     = models.DateField(blank=True, null=True, db_column='settlement_date')
+    exclusion_date                      = models.DateField(blank=True, null=True, db_column='exclusion_date')
 
     class Meta:
         managed  = False
@@ -50,6 +51,7 @@ class SerasaLimpaNomeErros(models.Model):
     error_origin   = models.CharField(blank=True, null=True, db_column='error_origin')
     error_message  = models.CharField(blank=True, null=True, db_column='error_message')
     created_at     = models.DateTimeField(blank=True, null=True, db_column='created_at')
+    error_event    = models.CharField(blank=True, null=True, db_column='error_event')
  
     class Meta:
         managed  = False
