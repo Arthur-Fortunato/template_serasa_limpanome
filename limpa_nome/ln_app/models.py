@@ -18,6 +18,7 @@ class SerasaLimpaNomeDividas(models.Model):
     debt_orig_document                  = models.CharField(blank=True, null=True, db_column='debt_orig_document')
     agreement_date                      = models.DateField(blank=True, null=True, db_column='agreement_date')
     created_at                          = models.DateTimeField(blank=True, null=True, db_column='created_at')
+    deal_status                         = models.CharField(blank=True, null=True, db_column='deal_status')
     # N SEI SE VAI QUERER SALVAR A PARTE DE DESCONTOS, MAS É BASICAMENTE A MESMA COISA 
     class Meta:
         managed  = False
@@ -26,12 +27,18 @@ class SerasaLimpaNomeDividas(models.Model):
 class SerasaLimpaNomeParcelas(models.Model):
     transaction_id          = models.CharField(blank=True, null=True, db_column='transaction_id')
     debt_id                 = models.CharField(blank=True, null=True, db_column='debt_id') 
+    agreement_id            = models.CharField(blank=True, null=True, db_column='agreement_id')
     installment             = models.IntegerField(blank=True, null=True, db_column='installment')
     installment_value       = models.DecimalField(blank=True, null=True, db_column='installment_value')
     due_date                = models.DateField(blank=True, null=True, db_column='due_date')
     payment_limit_date      = models.DateField(blank=True, null=True, db_column='payment_limit_date')
-
-    
+    payment_date            = models.DateField(blank=True, null=True, db_column='payment_date')
+    created_at              = models.DateTimeField(blank=True, null=True, db_column='created_at')
+ 
+    class Meta:
+        managed  = False
+        db_table = "SUA TABELA DE PARCELAS"
+        
 class SerasaLimpaNomeErros(models.Model):
     transaction_id = models.CharField(blank=True, null=True, db_column='transaction_id')
     debt_id        = models.CharField(blank=True, null=True, db_column='debt_id')
@@ -39,3 +46,7 @@ class SerasaLimpaNomeErros(models.Model):
     error_origin   = models.CharField(blank=True, null=True, db_column='error_origin')
     error_message  = models.CharField(blank=True, null=True, db_column='error_message')
     created_at     = models.DateTimeField(blank=True, null=True, db_column='created_at')
+ 
+    class Meta:
+        managed  = False
+        db_table = "SUA TABELA DE ERROS"

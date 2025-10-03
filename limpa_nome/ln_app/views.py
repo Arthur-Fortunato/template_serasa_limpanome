@@ -79,6 +79,7 @@ def hook_acordo_efetivado(request):
     created_at_str = payload.get("createdAt")
     data_acordo    = payload.get("agreementDate")
     parcelas       = payload.get("installments", []) 
+    status         = "Efetivado"
     
     for debt_id in debt_ids:
         try:
@@ -96,6 +97,7 @@ def hook_acordo_efetivado(request):
         acordo.created_at      = created_at
         acordo.agreement_date  = agreement_date_parsed
         acordo.agreement_value = payload.get("agreementValue")
+        acordo.deal_status     = status   
         acordo.save()
 
         for parcela in parcelas:
@@ -105,11 +107,9 @@ def hook_acordo_efetivado(request):
                 debt_id               = acordo.debt_id,
                 installment           = numero,
                 defaults={
-                    "installment_value"        : float(parcela.get("value")),
+                    "installment_value"     : float(parcela.get("value")),
                     "due_date"              : datetime.strptime(parcela.get("dueDate"), "%Y-%m-%d").date(),
-                    "data_limite_pagamento" : datetime.strptime(parcela.get("paymentLimitDate"), "%Y-%m-%d").date(),
-                    "data_pagamento"        : None,
-                    "data_transferencia"    : None,
+                    "payment_limit_date"    : datetime.strptime(parcela.get("paymentLimitDate"), "%Y-%m-%d").date(),
                     "created_at"            : created_at,
                     "agreement_id"          : agreement_id
                 }
