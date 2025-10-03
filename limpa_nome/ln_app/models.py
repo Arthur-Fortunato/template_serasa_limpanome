@@ -1,5 +1,7 @@
 from django.db import models
 # ESTOU FAZENDO DE UMA FORMA QUE SEPARE AS PARCELAS, OS ACORDOS E OS ERROS
+# NÃO SEI SE VAI QUERER SALVAR A PARTE DE DESCONTOS E COMISÃO, MAS É BASICAMENTE A MESMA COISA, SÓ ADICIONAR OS CAMPOS E MUDAR NA VIEW DEPOIS 
+
 class SerasaLimpaNomeDividas(models.Model):
     agreement_id                        = models.CharField(blank=True, null=True, db_column='agreement_id')
     transaction_id                      = models.CharField(blank=True, null=True, db_column='transaction_id')
@@ -19,7 +21,8 @@ class SerasaLimpaNomeDividas(models.Model):
     agreement_date                      = models.DateField(blank=True, null=True, db_column='agreement_date')
     created_at                          = models.DateTimeField(blank=True, null=True, db_column='created_at')
     deal_status                         = models.CharField(blank=True, null=True, db_column='deal_status')
-    # N SEI SE VAI QUERER SALVAR A PARTE DE DESCONTOS, MAS É BASICAMENTE A MESMA COISA 
+    settlement_date                     = models.DateField(blank=True, null=True, db_column='settlement_date')
+
     class Meta:
         managed  = False
         db_table = "SUA TABELA DE DIVIDAS"
@@ -33,6 +36,7 @@ class SerasaLimpaNomeParcelas(models.Model):
     due_date                = models.DateField(blank=True, null=True, db_column='due_date')
     payment_limit_date      = models.DateField(blank=True, null=True, db_column='payment_limit_date')
     payment_date            = models.DateField(blank=True, null=True, db_column='payment_date')
+    installment_status      = models.CharField(blank=True, null=True, db_column='installment_status')
     created_at              = models.DateTimeField(blank=True, null=True, db_column='created_at')
  
     class Meta:
