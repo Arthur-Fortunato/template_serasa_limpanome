@@ -1,9 +1,16 @@
 import json
-from datetime import datetime
+from datetime import datetime, timedelta, date
 from dateutil import parser
 from django.views.decorators.csrf import csrf_exempt
 from django.http.response import HttpResponseNotAllowed, JsonResponse
 from .models import SerasaLimpaNomeDividas, SerasaLimpaNomeParcelas, SerasaLimpaNomeErros
+from pathlib import Path
+
+LOG_FILE = Path("hooks_inclusao.jsonl") 
+
+def salvar_payload(payload: dict):
+    with LOG_FILE.open("a", encoding="utf-8") as f:
+        f.write(json.dumps(payload, ensure_ascii=False) + "\n")
 
 @csrf_exempt
 def hook_inclusao(request):
@@ -13,11 +20,14 @@ def hook_inclusao(request):
         payload = json.loads(request.body)
     except json.JSONDecodeError:
         return JsonResponse({"message": "JSON inválido"}, status=400)
+    
+    salvar_payload(payload)
+    
     event = payload.get("eventType")
     if event != "DebtCreatedEvent":
         return JsonResponse({"message": "Evento não suportado"}, status=400)
     
-    oferta        = payload.get("offer", {}) or {}
+    offer         = payload.get("offer", {}) or {}
     debt_orig     = payload.get("debtOrigin", {}) or {}
     errors        = payload.get("errors", []) or payload.get("error", []) or []
     create_at_str = payload.get("createdAt")
@@ -37,7 +47,7 @@ def hook_inclusao(request):
                 created_at     = create_at,
                 error_event    = "Inclusion" 
             )
-    if oferta == {}:
+    if offer == {}:
         SerasaLimpaNomeDividas.objects.create(
             transaction_id      = payload.get("transactionId"),
             debt_id             = payload.get("debtId"),
@@ -61,9 +71,9 @@ def hook_inclusao(request):
             occurrence_date                     = payload.get("occurrenceDate"),
             debt_type                           = payload.get("debtType"),
             debt_value                          = payload.get("debtValue"),
-            offer_value                         = oferta.get("value"),
-            offer_due_days_first_installment    = oferta.get("dueDaysFirstInstallment"),
-            max_installments                    = oferta.get("maxInstallments"),
+            offer_value                         = offer.get("value"),
+            offer_due_days_first_installment    = offer.get("dueDaysFirstInstallment"),
+            max_installments                    = offer.get("maxInstallments"),
             debt_orig_name                      = debt_orig.get("name"),
             debt_orig_document                  = debt_orig.get("document"),
             created_at                          = payload.get("createdAt")
@@ -73,11 +83,14 @@ def hook_inclusao(request):
 @csrf_exempt    
 def hook_exclusao(request):
     if request.method != "POST":
-        return JsonResponse({"message": "Método não permitido"}, status=400)
+        return HttpResponseNotAllowed(["POST"], "Método não permitido")
     try:
         payload = json.loads(request.body)
     except:
         return JsonResponse({"message": "JSON inválido"}, status=200)
+    
+    salvar_payload(payload)
+    
     event = payload.get("eventType")
     if event != "DebtRemovedEvent":
         return JsonResponse({"message": "Evento não suportado"}, status=400)
@@ -108,7 +121,7 @@ def hook_exclusao(request):
             debt_id        = debt_id
         ).update(
             agreement_status = "Removed",
-            exclusion_date   = datetime.date().today()
+            exclusion_date   = date.today().strftime("%Y-%m-%d")
         )
         
         # AQUI PODE DECIDIR DE VAI DELETAR TODAS AS PARCELAS DO BANCO OU SE VAI DEIXAR LÁ MESMO
@@ -122,6 +135,9 @@ def hook_acordo_efetivado(request):
         payload = json.loads(request.body)
     except json.JSONDecodeError:
         return JsonResponse({"message": "JSON inválido"}, status=400)
+    
+    salvar_payload(payload)
+    
     event = payload.get("eventType")
     if event != "ClosedAgreementEvent":
         return JsonResponse({"message": "Evento não suportado"}, status=400)
@@ -181,6 +197,9 @@ def hook_acordo_quebrado(request):
         payload = json.loads(request.body)
     except:
         return JsonResponse({"message": "JSON inválido"}, status=400)
+    
+    salvar_payload(payload)
+    
     event = payload.get("eventType")
     if  event != "BreachedAgreementEvent":
         return JsonResponse({"message": "Evento não suportado"}, status=400)
@@ -217,6 +236,9 @@ def hook_acordo_quitado(request):
         payload = json.loads(request.body)
     except:
         return JsonResponse({"message": "JSON inválido"}, status=400)
+    
+    salvar_payload(payload)
+    
     event = payload.get("eventType")
     if event != "PaidAgreementEvent":
         return JsonResponse({"message": "Evento não suportado"}, status=400)
@@ -245,11 +267,14 @@ def hook_acordo_quitado(request):
 
 def hook_pagamento_parcela(request):
     if request.method != "POST":
-        return JsonResponse({"message": "Método não permitido"}, status=400)
+        return HttpResponseNotAllowed(["POST"], "Método não permitido")
     try:
         payload = json.loads(request.body)
     except:
         return JsonResponse({"message": "JSON inválido"}, status=400)
+    
+    salvar_payload(payload)
+    
     event = payload.get("eventType")
     if event != "PaidInstallmentEvent":
         return JsonResponse({"message": "Evento não suportado"}, status=400)
@@ -283,3 +308,70 @@ def hook_pagamento_parcela(request):
                 
     return JsonResponse({"message": "PaidInstallment processado."}, status=200)
 
+def obter_boleto(request): 
+    if request.method != "POST":
+        return JsonResponse({"message": "Método não permitido"}, status=405)
+    try:
+        payload = json.loads(request.body)
+    except:
+        return JsonResponse({"message": "JSON inválido"}, status=400)
+    
+    salvar_payload(payload)
+    
+    document        = payload.get("document")
+    offer_id        = payload.get("offerId")
+    agreement_id    = payload.get("agreementId")
+    installment     = payload.get("instalment")
+    due_date        = payload.get("dueDate")
+    agreement_total = payload.get("agreementTotal")
+    payment_method  = payload.get("paymentMethod")
+    
+    if not (document or offer_id or agreement_id or installment or due_date or agreement_total or payment_method):
+        return JsonResponse({"message": "Campos ausentes"}, status=400)
+    
+    agreement_date_str = payload.get("agreementDate")
+    try:
+        agreement_date = datetime.strptime(agreement_date_str, '%Y-%m-%dT%H:%M:%S.%f').date()
+    except:
+        agreement_date = datetime.strptime(agreement_date_str, "%Y-%m-%dT%H:%M:%S").date()
+        
+    try:
+        due_date_dt = datetime.strptime(due_date, '%Y-%m-%d').date()
+    except: 
+        return JsonResponse({"message": "Formato inválido"}, status=400)
+    
+    min_due = agreement_date + timedelta(days=3)
+    
+    if due_date_dt < min_due:
+        return JsonResponse({"message": "dueDate tem que ser pelo menos D+3"}, status=400)
+    
+    try:
+        agreement = SerasaLimpaNomeDividas.objects.get(agreement_id=agreement_id)
+    except SerasaLimpaNomeDividas.DoesNotExist:
+        return JsonResponse({}, status=204)
+    
+    try:
+        inst = SerasaLimpaNomeParcelas.objects.get(
+            transaction_id = agreement.transaction_id,
+            installment    = installment
+        )
+    except SerasaLimpaNomeParcelas.DoesNotExist:
+        return JsonResponse({}, status=204)
+    
+    bar_code   = "BAR CODE"
+    digit_line = "DIGIT LINE"
+    base64     = "BASE 64"
+    
+    resp = {
+        "offerId"           : offer_id,
+        "agreementId"       : agreement_id,
+        "dueDate"           : due_date,
+        "instalment"        : int(installment),
+        "instalmentValue"   : inst.installment_value,
+        "paymentMethod"     : payment_method,
+        "barCode"           : bar_code,
+        "digitLine"         : digit_line,
+        "base64"            : base64
+    }
+    
+    return JsonResponse(resp, status=200)
